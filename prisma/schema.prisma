@@ -1,0 +1,554 @@
+// prisma/schema.prisma
+// ระบบบริหารงานซ่อมบำรุง - Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum UserRole {
+  USER
+  TECHNICIAN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum EquipmentStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceScheduleType {
+  PREVENTIVE
+  PREDICTIVE
+  ROUTINE
+}
+
+enum MaintenanceScheduleFrequency {
+  DAILY
+  WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUALLY
+  ANNUALLY
+  CUSTOM
+}
+
+enum MaintenanceScheduleStatus {
+  ACTIVE
+  INACTIVE
+  COMPLETED
+}
+
+enum NotificationType {
+  WORK_ORDER_CREATED
+  WORK_ORDER_ASSIGNED
+  WORK_ORDER_STATUS_CHANGED
+  WORK_ORDER_COMPLETED
+  WORK_ORDER_OVERDUE
+  WORK_ORDER_COMMENT
+  MAINTENANCE_SCHEDULE_DUE
+  MAINTENANCE_SCHEDULE_OVERDUE
+  SYSTEM
+}
+
+enum ActivityLogAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  LOGIN
+  LOGOUT
+}
+
+enum InventoryTransactionType {
+  IN // รับเข้า (ซื้อมา, คืนของ)
+  OUT // จ่ายออก (ใช้ซ่อม, หาย, เสื่อมสภาพ)
+  ADJUST // ปรับปรุงยอด (ตรวจยับ)
+}
+
+enum LocationType {
+  SITE
+  BUILDING
+  FLOOR
+  ROOM
+  ZONE
+  OTHER
+}
+
+// ========================================
+// MODELS
+// ========================================
+
+model User {
+  id               String     @id @default(uuid()) @db.Uuid
+  email            String     @unique
+  name             String
+  role             UserRole   @default(USER)
+  phone            String?
+  avatarUrl        String?    @map("avatar_url")
+  status           UserStatus @default(ACTIVE)
+  position         String? // ตำแหน่งงาน
+  department       String? // แผนก
+  lineUserId       String?    @unique @map("line_user_id")
+  lineDisplayName  String?    @map("line_display_name")
+  lineNotify       Boolean    @default(false) @map("line_notify")
+  linkingCode      String?    @unique @map("linking_code")
+  telegramUsername String?    @map("telegram_username")
+  telegramNotify   Boolean    @default(false) @map("telegram_notify")
+  lastLoginAt      DateTime?  @map("last_login_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  reportedWorkOrders      WorkOrder[]            @relation("ReportedBy")
+  assignedWorkOrders      WorkOrder[]            @relation("AssignedTo")
+  maintenanceLogs         MaintenanceLog[]
+  workOrderComments       WorkOrderComment[]
+  notifications           Notification[]
+  maintenanceSchedules    MaintenanceSchedule[]  @relation("ScheduleAssignedTo")
+  uploadedAttachments     WorkOrderAttachment[]
+  activityLogs            ActivityLog[]
+  responsibleForEquipment Equipment[]            @relation("ResponsiblePerson")
+  maintenanceHistory      MaintenanceHistory[]
+  InventoryTransaction    InventoryTransaction[]
+
+  @@map("users")
+}
+
+model EquipmentCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  equipment Equipment[]
+
+  @@map("equipment_categories")
+}
+
+model Equipment {
+  id                  String          @id @default(uuid()) @db.Uuid
+  code                String          @unique
+  name                String
+  categoryId          String          @map("category_id") @db.Uuid
+  type                String?
+  manufacturer        String?
+  model               String?
+  serialNumber        String?         @unique @map("serial_number")
+  location            String?
+  floor               String? // ชั้นที่ติดตั้ง
+  installationDate    DateTime?       @map("installation_date") @db.Date
+  warrantyExpiry      DateTime?       @map("warranty_expiry") @db.Date
+  cost                Decimal?        @db.Decimal(12, 2)
+  status              EquipmentStatus @default(ACTIVE)
+  qrCode              String          @unique @map("qr_code")
+  description         String?         @db.Text
+  manualUrl           String?         @map("manual_url")
+  specifications      Json?           @db.JsonB
+  responsiblePersonId String?         @map("responsible_person_id") @db.Uuid
+  supplierContact     String?         @map("supplier_contact")
+  parentId            String?         @map("parent_id") @db.Uuid // For Asset Hierarchy
+  locationId          String?         @map("location_id") @db.Uuid // Structured Location
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  image               String?         @map("image")
+
+  // Relations
+  category             EquipmentCategory     @relation(fields: [categoryId], references: [id])
+  responsiblePerson    User?                 @relation("ResponsiblePerson", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  parent               Equipment?            @relation("EquipmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children             Equipment[]           @relation("EquipmentHierarchy")
+  locationRef          Location?             @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  workOrders           WorkOrder[]
+  maintenanceSchedules MaintenanceSchedule[]
+  maintenanceHistory   MaintenanceHistory[]
+  expenses             Expense[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([location]) // Keep old location string index for backward compatibility if needed, or remove? Keeping for now.
+  @@index([parentId])
+  @@index([locationId])
+  @@map("equipment")
+}
+
+model WorkOrder {
+  id                  String            @id @default(uuid()) @db.Uuid
+  woNumber            String            @unique @map("wo_number")
+  equipmentId         String            @map("equipment_id") @db.Uuid
+  title               String
+  description         String            @db.Text
+  priority            WorkOrderPriority @default(MEDIUM)
+  status              WorkOrderStatus   @default(PENDING)
+  reportedBy          String            @map("reported_by") @db.Uuid
+  assignedTo          String?           @map("assigned_to") @db.Uuid
+  reportedAt          DateTime          @default(now()) @map("reported_at")
+  startedAt           DateTime?         @map("started_at")
+  completedAt         DateTime?         @map("completed_at")
+  dueDate             DateTime?         @map("due_date")
+  resolutionTimeHours Decimal?          @map("resolution_time_hours") @db.Decimal(8, 2)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  equipment       Equipment             @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  reporter        User                  @relation("ReportedBy", fields: [reportedBy], references: [id], onDelete: Restrict)
+  assignee        User?                 @relation("AssignedTo", fields: [assignedTo], references: [id], onDelete: SetNull)
+  maintenanceLogs MaintenanceLog[]
+  comments        WorkOrderComment[]
+  attachments     WorkOrderAttachment[]
+  expenses        Expense[]
+  workOrderParts  WorkOrderPart[]
+
+  @@index([equipmentId])
+  @@index([reportedBy])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@index([reportedAt])
+  @@index([woNumber])
+  @@map("work_orders")
+}
+
+model MaintenanceLog {
+  id           String    @id @default(uuid()) @db.Uuid
+  workOrderId  String    @map("work_order_id") @db.Uuid
+  technicianId String?   @map("technician_id") @db.Uuid
+  description  String    @db.Text
+  rootCause    String?   @map("root_cause") @db.Text
+  solution     String?   @db.Text
+  startTime    DateTime  @map("start_time")
+  endTime      DateTime? @map("end_time")
+  workHours    Decimal?  @map("work_hours") @db.Decimal(6, 2)
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  workOrder      WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  technician     User?           @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  parts          WorkOrderPart[]
+  expenses       Expense[]
+
+  @@index([workOrderId])
+  @@index([technicianId])
+  @@map("maintenance_logs")
+}
+
+model SparePart {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String   @unique
+  name          String
+  category      String?
+  unit          String
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
+  stockQuantity Int      @default(0) @map("stock_quantity")
+  minStockLevel Int      @default(0) @map("min_stock_level")
+  maxStockLevel Int?     @map("max_stock_level")
+  reorderPoint  Int?     @map("reorder_point")
+  locationId    String?  @map("location_id") @db.Uuid // Storage Location
+  supplier      String?
+  description   String?  @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  location       Location?              @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  workOrderParts WorkOrderPart[]
+  transactions   InventoryTransaction[]
+
+  @@index([code])
+  @@index([category])
+  @@index([locationId])
+  @@map("spare_parts")
+}
+
+model WorkOrderPart {
+  id               String   @id @default(uuid()) @db.Uuid
+  workOrderId      String   @map("work_order_id") @db.Uuid
+  maintenanceLogId String?  @map("maintenance_log_id") @db.Uuid
+  sparePartId      String   @map("spare_part_id") @db.Uuid
+  quantity         Int
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
+  totalPrice       Decimal  @map("total_price") @db.Decimal(12, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workOrder      WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  maintenanceLog MaintenanceLog? @relation(fields: [maintenanceLogId], references: [id], onDelete: Cascade)
+  sparePart      SparePart       @relation(fields: [sparePartId], references: [id])
+
+  @@index([workOrderId])
+  @@index([maintenanceLogId])
+  @@index([sparePartId])
+  @@map("work_order_parts")
+}
+
+model ExpenseType {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  expenses Expense[]
+
+  @@map("expense_types")
+}
+
+model Expense {
+  id               String   @id @default(uuid()) @db.Uuid
+  workOrderId      String?  @map("work_order_id") @db.Uuid
+  maintenanceLogId String?  @map("maintenance_log_id") @db.Uuid
+  equipmentId      String?  @map("equipment_id") @db.Uuid
+  expenseTypeId    String   @map("expense_type_id") @db.Uuid
+  description      String
+  quantity         Int
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
+  total            Decimal  @db.Decimal(12, 2)
+  date             DateTime @db.Date
+  receiptUrl       String?  @map("receipt_url")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workOrder      WorkOrder?      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  maintenanceLog MaintenanceLog? @relation(fields: [maintenanceLogId], references: [id], onDelete: SetNull)
+  equipment      Equipment?      @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  expenseType    ExpenseType     @relation(fields: [expenseTypeId], references: [id])
+
+  @@index([workOrderId])
+  @@index([maintenanceLogId])
+  @@index([equipmentId])
+  @@index([expenseTypeId])
+  @@index([date])
+  @@map("expenses")
+}
+
+model MaintenanceSchedule {
+  id                String                       @id @default(uuid()) @db.Uuid
+  equipmentId       String                       @map("equipment_id") @db.Uuid
+  activityName      String                       @map("activity_name")
+  description       String?                      @db.Text
+  type              MaintenanceScheduleType      @default(PREVENTIVE)
+  frequency         MaintenanceScheduleFrequency
+  startDate         DateTime                     @map("start_date") @db.Date
+  endDate           DateTime?                    @map("end_date") @db.Date
+  assignedTo        String?                      @map("assigned_to") @db.Uuid
+  estimatedDuration Int?                         @map("estimated_duration")
+  checklist         Json?                        @db.JsonB
+  status            MaintenanceScheduleStatus    @default(ACTIVE)
+  lastPerformedDate DateTime?                    @map("last_performed_date") @db.Date
+  nextDueDate       DateTime?                    @map("next_due_date") @db.Date
+  createdAt         DateTime                     @default(now()) @map("created_at")
+  updatedAt         DateTime                     @updatedAt @map("updated_at")
+
+  // Relations
+  equipment Equipment            @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  assignee  User?                @relation("ScheduleAssignedTo", fields: [assignedTo], references: [id], onDelete: SetNull)
+  history   MaintenanceHistory[]
+
+  @@index([equipmentId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([nextDueDate])
+  @@map("maintenance_schedules")
+}
+
+model WorkOrderComment {
+  id          String   @id @default(uuid()) @db.Uuid
+  workOrderId String   @map("work_order_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  comment     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([userId])
+  @@map("work_order_comments")
+}
+
+model WorkOrderAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  workOrderId String   @map("work_order_id") @db.Uuid
+  fileName    String   @map("file_name")
+  fileUrl     String   @map("file_url")
+  fileType    String   @map("file_type")
+  fileSize    Int      @map("file_size")
+  uploadedBy  String?  @map("uploaded_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  uploader  User?     @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([workOrderId])
+  @@index([uploadedBy])
+  @@map("work_order_attachments")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String?           @map("user_id") @db.Uuid
+  entityType String            @map("entity_type")
+  entityId   String?           @map("entity_id") @db.Uuid
+  action     ActivityLogAction
+  changes    Json?             @db.JsonB
+  ipAddress  String?           @map("ip_address")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model MaintenanceHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  scheduleId  String   @map("schedule_id") @db.Uuid
+  equipmentId String   @map("equipment_id") @db.Uuid
+  performerId String?  @map("performer_id") @db.Uuid
+  performedAt DateTime @default(now()) @map("performed_at")
+  status      String   @default("COMPLETED") // COMPLETED, MISSED, FAILED
+  notes       String?  @db.Text
+  checklist   Json?    @db.JsonB // Snapshot of the checklist items with their values
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  schedule  MaintenanceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  equipment Equipment           @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  performer User?               @relation(fields: [performerId], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId])
+  @@index([performerId])
+  @@index([performedAt])
+  @@map("maintenance_history")
+}
+
+// ========================================
+// NEW MODELS FOR PHASE 1
+// ========================================
+
+model InventoryTransaction {
+  id            String                   @id @default(uuid()) @db.Uuid
+  sparePartId   String                   @map("spare_part_id") @db.Uuid
+  type          InventoryTransactionType
+  quantity      Int // Positive for IN, Negative for OUT (or handle with logic) -> Let's say magnitude here, sign implies logic? Usually quantity is change amount (+ or -)
+  balanceAfter  Int                      @map("balance_after") // Snapshot of stock after transaction
+  referenceId   String?                  @map("reference_id") // workOrderId, etc.
+  referenceType String?                  @map("reference_type") // WORK_ORDER, PURCHASE_ORDER, MANUAL_ADJUST
+  unitPrice     Decimal?                 @map("unit_price") @db.Decimal(12, 2)
+  totalCost     Decimal?                 @map("total_cost") @db.Decimal(12, 2)
+  notes         String?                  @db.Text
+  createdById   String?                  @map("created_by_id") @db.Uuid
+  createdAt     DateTime                 @default(now()) @map("created_at")
+
+  // Relations
+  sparePart SparePart @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([sparePartId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("inventory_transactions")
+}
+
+model Location {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  type        LocationType @default(OTHER)
+  parentId    String?      @map("parent_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  parent     Location?   @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Location[]  @relation("LocationHierarchy")
+  equipment  Equipment[]
+  spareParts SparePart[]
+
+  @@index([parentId])
+  @@map("locations")
+}
+
+// ========================================
+// LINE INTEGRATION
+// ========================================
+
+model LineSettings {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @unique @map("group_id")
+  groupName String?  @map("group_name")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("line_settings")
+}
