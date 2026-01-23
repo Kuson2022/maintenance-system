@@ -10,6 +10,8 @@ import {
   getUpcomingPMSchedulesAction,
 } from "@/app/actions/dashboard";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dashboard | ระบบซ่อมบำรุง",
   description: "ภาพรวมระบบบริหารงานซ่อมบำรุง",

@@ -10,6 +10,8 @@ import { WorkOrdersStatsToggle } from "./work-orders-stats-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkOrdersExportButton } from "@/components/work-orders/export-button";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Work Orders Main Page (Server Component)
  * หน้ารายการใบแจ้งซ่อม
