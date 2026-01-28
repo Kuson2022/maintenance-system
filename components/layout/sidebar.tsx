@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Wrench,
@@ -14,9 +15,17 @@ import {
   Users,
   Settings,
   Warehouse,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { checkReportPermissionsAction } from "@/lib/api/reports/actions";
 import { useAuth } from "@/lib/auth/auth-context";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MenuItem {
   title: string;
@@ -78,7 +87,12 @@ const menuItems: MenuItem[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+export function Sidebar({ collapsed = false, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
   const [canViewReports, setCanViewReports] = useState(false);
@@ -114,53 +128,104 @@ export function Sidebar() {
   });
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 border-r bg-white">
-      {/* Logo */}
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
-            <span className="text-white font-bold text-lg">MS</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-lg">Maintenance</h1>
-            <p className="text-xs text-muted-foreground">System</p>
+    <TooltipProvider delayDuration={0}>
+      <aside
+        className={cn(
+          "hidden lg:flex lg:flex-col border-r bg-white transition-all duration-300",
+          collapsed ? "lg:w-16" : "lg:w-64"
+        )}
+      >
+        {/* Logo */}
+        <div className="p-4 border-b">
+          <div className={cn(
+            "flex items-center",
+            collapsed ? "justify-center" : "gap-3"
+          )}>
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary flex-shrink-0">
+              <span className="text-white font-bold text-lg">MS</span>
+            </div>
+            {!collapsed && (
+              <div>
+                <h1 className="font-bold text-lg">Maintenance</h1>
+                <p className="text-xs text-muted-foreground">System</p>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {filteredMenuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
+        {/* Navigation */}
+        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          {filteredMenuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              <span>{item.title}</span>
-            </Link>
-          );
-        })}
-      </nav>
+            const linkContent = (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  collapsed && "justify-center px-2",
+                  isActive
+                    ? "bg-primary text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span>{item.title}</span>}
+              </Link>
+            );
 
-      {/* Footer */}
-      <div className="p-4 border-t">
-        <div className="rounded-lg bg-blue-50 p-4">
-          <p className="text-sm font-medium text-blue-900">ต้องการความช่วยเหลือ?</p>
-          <p className="text-xs text-blue-700 mt-1">
-            ติดต่อฝ่าย IT Support
-          </p>
+            if (collapsed) {
+              return (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>
+                    {linkContent}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="font-medium">
+                    {item.title}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return linkContent;
+          })}
+        </nav>
+
+        {/* Toggle Button & Footer */}
+        <div className="border-t p-2">
+          {/* Toggle Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onCollapsedChange?.(!collapsed)}
+            className={cn(
+              "w-full flex items-center gap-2 text-muted-foreground hover:text-foreground",
+              collapsed ? "justify-center px-2" : "justify-start"
+            )}
+          >
+            {collapsed ? (
+              <PanelLeft className="h-5 w-5" />
+            ) : (
+              <>
+                <PanelLeftClose className="h-5 w-5" />
+                <span>ซ่อนเมนู</span>
+              </>
+            )}
+          </Button>
+
+          {/* Footer - Only show when expanded */}
+          {!collapsed && (
+            <div className="mt-2 rounded-lg bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-900">ต้องการความช่วยเหลือ?</p>
+              <p className="text-xs text-blue-700 mt-1">
+                ติดต่อฝ่าย IT Support
+              </p>
+            </div>
+          )}
         </div>
-      </div>
-    </aside>
+      </aside>
+    </TooltipProvider>
   );
 }

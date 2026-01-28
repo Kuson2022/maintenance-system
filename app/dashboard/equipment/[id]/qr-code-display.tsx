@@ -2,7 +2,7 @@
 
 /**
  * QR Code Display Component
- * แสดงและดาวน์โหลด QR Code
+ * แสดงและดาวน์โหลด QR Code ที่ลิงค์ไปหน้า Equipment Detail
  */
 
 import { useState, useEffect } from "react";
@@ -13,31 +13,37 @@ import { toast } from "sonner";
 import { generateQrCodeImageAction } from "@/app/actions/equipment";
 
 interface QrCodeDisplayProps {
-    qrCode: string;
+    equipmentId: string;
     equipmentName: string;
     equipmentCode: string;
 }
 
-export function QrCodeDisplay({ qrCode, equipmentName, equipmentCode }: QrCodeDisplayProps) {
+export function QrCodeDisplay({ equipmentId, equipmentName, equipmentCode }: QrCodeDisplayProps) {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
 
+    // Construct the URL to equipment detail page
+    const qrContent = `${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard/equipment/${equipmentId}`;
+
     useEffect(() => {
         async function generateQr() {
+            if (typeof window === 'undefined') return;
+
             try {
-                const result = await generateQrCodeImageAction(qrCode);
+                const result = await generateQrCodeImageAction(qrContent);
                 if (result.success && result.data) {
                     setImageUrl(result.data);
                 }
             } catch (error) {
                 console.error("Error generating QR code:", error);
+                toast.error("ไม่สามารถสร้าง QR Code ได้");
             } finally {
                 setLoading(false);
             }
         }
         generateQr();
-    }, [qrCode]);
+    }, [qrContent]);
 
     const handleDownload = () => {
         if (!imageUrl) return;
@@ -53,7 +59,7 @@ export function QrCodeDisplay({ qrCode, equipmentName, equipmentCode }: QrCodeDi
 
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(qrCode);
+            await navigator.clipboard.writeText(qrContent);
             setCopied(true);
             toast.success("คัดลอก QR URL เรียบร้อย");
             setTimeout(() => setCopied(false), 2000);
@@ -64,7 +70,7 @@ export function QrCodeDisplay({ qrCode, equipmentName, equipmentCode }: QrCodeDi
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 py-4">
                 <Skeleton className="h-48 w-48" />
                 <Skeleton className="h-4 w-32" />
             </div>
@@ -72,7 +78,7 @@ export function QrCodeDisplay({ qrCode, equipmentName, equipmentCode }: QrCodeDi
     }
 
     return (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 py-4">
             {imageUrl ? (
                 <img
                     src={imageUrl}
@@ -87,21 +93,20 @@ export function QrCodeDisplay({ qrCode, equipmentName, equipmentCode }: QrCodeDi
 
             <p className="text-sm text-muted-foreground font-mono font-semibold">{equipmentCode}</p>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full justify-center">
                 <Button variant="outline" size="sm" onClick={handleCopy}>
                     {copied ? (
                         <Check className="mr-2 h-4 w-4" />
                     ) : (
                         <Copy className="mr-2 h-4 w-4" />
                     )}
-                    {copied ? "คัดลอกแล้ว" : "คัดลอก URL"}
+                    {copied ? "คัดลอกแล้ว" : "Copy Link"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={!imageUrl}>
                     <Download className="mr-2 h-4 w-4" />
-                    ดาวน์โหลด
+                    Save Image
                 </Button>
             </div>
         </div>
     );
 }
-

@@ -24,8 +24,7 @@ import { EquipmentSchedules } from "./equipment-schedules";
 import { EquipmentMaintenanceHistory } from "./equipment-maintenance-history";
 import { EquipmentExpenses } from "./equipment-expenses";
 import { EquipmentSpecifications } from "./equipment-specifications";
-import { EquipmentStatsCards } from "./equipment-stats-cards";
-import { getEquipmentById, getEquipmentDetailStats } from "@/lib/api/equipment";
+import { getEquipmentById } from "@/lib/api/equipment";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
@@ -50,10 +49,7 @@ interface Props {
 
 export default async function EquipmentDetailPage({ params }: Props) {
     const { id } = await params;
-    const [equipment, stats] = await Promise.all([
-        getEquipmentById(id),
-        getEquipmentDetailStats(id),
-    ]);
+    const equipment = await getEquipmentById(id);
 
     if (!equipment) {
         notFound();
@@ -98,10 +94,7 @@ export default async function EquipmentDetailPage({ params }: Props) {
                 <EquipmentActionButtons equipmentId={equipment.id} />
             </div>
 
-            {/* Stats Cards */}
-            <div className="hidden md:block">
-                <EquipmentStatsCards stats={stats} />
-            </div>
+
 
             <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
                 {/* Main Info */}
@@ -292,7 +285,7 @@ export default async function EquipmentDetailPage({ params }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <QrCodeDisplay qrCode={equipment.qrCode} equipmentName={equipment.name} equipmentCode={equipment.code} />
+                            <QrCodeDisplay equipmentId={equipment.id} equipmentName={equipment.name} equipmentCode={equipment.code} />
                         </CardContent>
                     </Card>
 

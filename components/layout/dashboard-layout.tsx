@@ -13,6 +13,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // Client-side protection: Redirect if no user
@@ -20,6 +21,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  // Load sidebar state from localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem("sidebar-collapsed");
+    if (savedState !== null) {
+      setSidebarCollapsed(JSON.parse(savedState));
+    }
+  }, []);
+
+  // Save sidebar state to localStorage
+  const handleSidebarCollapsedChange = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem("sidebar-collapsed", JSON.stringify(collapsed));
+  };
 
   // Show loading screen while checking auth
   if (loading) {
@@ -42,7 +57,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden print:h-auto print:overflow-visible">
       {/* Desktop Sidebar */}
       <div className="print:hidden">
-        <Sidebar />
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={handleSidebarCollapsedChange}
+        />
       </div>
 
       {/* Mobile Sidebar Drawer */}
