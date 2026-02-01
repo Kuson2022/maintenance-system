@@ -3,8 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package } from "lucide-react";
 import { EquipmentList } from "./equipment-list";
-import { EquipmentStats } from "./equipment-stats";
-import { WarrantyAlertsSection } from "@/components/equipment/warranty-alerts-section";
 import { EquipmentActionButtons } from "@/components/equipment/equipment-action-buttons";
 
 export default function EquipmentPage() {
@@ -23,16 +21,6 @@ export default function EquipmentPage() {
         </Suspense>
       </div>
 
-      {/* Warranty Alerts */}
-      <Suspense fallback={null}>
-        <WarrantyAlertsSection />
-      </Suspense>
-
-      {/* Stats */}
-      <Suspense fallback={<StatsLoadingSkeleton />}>
-        <EquipmentStats />
-      </Suspense>
-
       {/* Equipment List */}
       <Card>
         <CardHeader className="pb-3 sm:pb-6">
@@ -47,25 +35,6 @@ export default function EquipmentPage() {
           </Suspense>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-// Loading Skeletons
-function StatsLoadingSkeleton() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {[1, 2, 3, 4].map((i) => (
-        <Card key={i}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-8 rounded-full" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16" />
-          </CardContent>
-        </Card>
-      ))}
     </div>
   );
 }

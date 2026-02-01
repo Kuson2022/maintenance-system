@@ -4,7 +4,6 @@
  */
 
 import { lineClient, isLineConfigured } from '@/lib/line';
-import { prisma } from '@/lib/prisma';
 import { TextMessage } from '@line/bot-sdk';
 
 // ========================================
@@ -50,20 +49,18 @@ export async function sendGroupNotification(payload: GroupNotificationPayload): 
             return;
         }
 
-        // ดึง Group ID จาก settings
-        const settings = await prisma.lineSettings.findFirst({
-            where: { isActive: true }
-        });
+        // ดึง Group ID จาก environment variable
+        const groupId = process.env.LINE_GROUP_ID;
 
-        if (!settings?.groupId) {
-            console.warn('No active LINE group configured - skipping notification');
+        if (!groupId) {
+            console.warn('LINE_GROUP_ID is not configured - skipping notification');
             return;
         }
 
         const message = createGroupMessage(payload);
 
         await lineClient.pushMessage({
-            to: settings.groupId,
+            to: groupId,
             messages: [message],
         });
 

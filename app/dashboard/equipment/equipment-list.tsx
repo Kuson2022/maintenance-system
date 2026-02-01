@@ -63,12 +63,10 @@ import {
 import { toast } from "sonner";
 import {
     getEquipmentsAction,
-    getEquipmentCategoriesAction,
+    getEquipmentInitDataAction,
     getEquipmentLocationsAction,
-    getEquipmentFloorsAction,
     deleteEquipmentAction,
     retireEquipmentAction,
-    checkEquipmentPermissionsAction,
 } from "@/app/actions/equipment";
 import { SerializedEquipment, EquipmentPermissions } from "@/lib/api/equipment/types";
 import { BulkStatusDialog } from "@/components/equipment/bulk-status-dialog";
@@ -169,37 +167,32 @@ export function EquipmentList() {
         }
     }, [search, categoryFilter, statusFilter, locationFilter, floorFilter, pagination.page, pagination.pageSize]);
 
-    // Fetch categories, locations, and permissions
+    // Fetch initial data (categories, floors, permissions) - Combined API call for performance
     useEffect(() => {
-        async function fetchFiltersData() {
+        async function fetchInitData() {
             try {
-                const [catResult, locResult, floorResult, permResult] = await Promise.all([
-                    getEquipmentCategoriesAction(),
-                    getEquipmentLocationsAction(),
-                    getEquipmentFloorsAction(),
-                    checkEquipmentPermissionsAction(),
-                ]);
+                const result = await getEquipmentInitDataAction();
 
-                if (catResult.success && catResult.data) {
-                    setCategories(catResult.data.map((c: any) => ({ id: c.id, name: c.name })));
-                }
+                if (result.success && result.data) {
+                    const { categories: cats, floors: flrs, permissions: perms } = result.data;
 
-                if (locResult.success && locResult.data) {
-                    setLocations(locResult.data);
-                }
+                    if (cats) {
+                        setCategories(cats.map((c: any) => ({ id: c.id, name: c.name })));
+                    }
 
-                if (floorResult.success && floorResult.data) {
-                    setFloors(floorResult.data);
-                }
+                    if (flrs) {
+                        setFloors(flrs);
+                    }
 
-                if (permResult.success && permResult.data) {
-                    setPermissions(permResult.data);
+                    if (perms) {
+                        setPermissions(perms);
+                    }
                 }
             } catch (error) {
-                console.error("Error fetching filter data:", error);
+                console.error("Error fetching init data:", error);
             }
         }
-        fetchFiltersData();
+        fetchInitData();
     }, []);
 
     // Fetch locations when floor changes

@@ -10,8 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
     Wrench,
-    Package,
-    Calendar,
     ChevronDown,
     ChevronUp,
     BarChart3,
@@ -75,9 +73,6 @@ export function DashboardClient({
     const { userProfile } = useAuth();
     const [showStats, setShowStats] = useState(false);
     const [showCharts, setShowCharts] = useState(false);
-
-    // Hide Quick Actions for USER role
-    const showQuickActions = userProfile?.role !== "USER";
 
     return (
         <div className="space-y-6">
@@ -178,39 +173,7 @@ export function DashboardClient({
                 <UpcomingSchedules schedules={upcomingSchedules} userRole={userProfile?.role} />
             </div>
 
-            {/* Quick Actions - Hidden for USER role */}
-            {showQuickActions && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base md:text-lg">การดำเนินการด่วน</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className={`grid gap-4 ${userProfile?.role === "ADMIN" ? "grid-cols-3" : "grid-cols-2"} md:grid-cols-3`}>
-                            <Link href="/dashboard/work-orders/new">
-                                <button className="w-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-3 md:p-6 text-center hover:border-primary hover:bg-accent transition-colors">
-                                    <Wrench className="h-6 w-6 md:h-8 md:w-8 mb-1 md:mb-2 text-primary" />
-                                    <span className="font-medium text-xs md:text-sm">แจ้งซ่อม</span>
-                                </button>
-                            </Link>
-                            {/* เพิ่มเครื่องจักร - เฉพาะ ADMIN */}
-                            {userProfile?.role === "ADMIN" && (
-                                <Link href="/dashboard/equipment/new">
-                                    <button className="w-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-3 md:p-6 text-center hover:border-primary hover:bg-accent transition-colors">
-                                        <Package className="h-6 w-6 md:h-8 md:w-8 mb-1 md:mb-2 text-primary" />
-                                        <span className="font-medium text-xs md:text-sm">เพิ่มเครื่องจักร</span>
-                                    </button>
-                                </Link>
-                            )}
-                            <Link href="/dashboard/schedules">
-                                <button className="w-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-3 md:p-6 text-center hover:border-primary hover:bg-accent transition-colors">
-                                    <Calendar className="h-6 w-6 md:h-8 md:w-8 mb-1 md:mb-2 text-primary" />
-                                    <span className="font-medium text-xs md:text-sm">ตารางซ่อม</span>
-                                </button>
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+
         </div>
     );
 }

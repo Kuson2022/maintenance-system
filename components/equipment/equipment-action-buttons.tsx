@@ -14,22 +14,36 @@ import { ExportButton } from "@/components/equipment/export-button";
 import { checkEquipmentPermissionsAction } from "@/app/actions/equipment";
 import { EquipmentPermissions } from "@/lib/api/equipment/types";
 
-export function EquipmentActionButtons() {
-    const [permissions, setPermissions] = useState<EquipmentPermissions>({
-        canView: true,
-        canCreate: false,
-        canEdit: false,
-        canDelete: false,
-        canRetire: false,
-        canBulkUpdate: false,
-        canBulkAssign: false,
-        canImport: false,
-        canExport: false,
-        canManageCategories: false,
-    });
-    const [loading, setLoading] = useState(true);
+interface EquipmentActionButtonsProps {
+    /** Optional permissions to avoid duplicate API call */
+    initialPermissions?: EquipmentPermissions;
+}
+
+export function EquipmentActionButtons({ initialPermissions }: EquipmentActionButtonsProps) {
+    const [permissions, setPermissions] = useState<EquipmentPermissions>(
+        initialPermissions || {
+            canView: true,
+            canCreate: false,
+            canEdit: false,
+            canDelete: false,
+            canRetire: false,
+            canBulkUpdate: false,
+            canBulkAssign: false,
+            canImport: false,
+            canExport: false,
+            canManageCategories: false,
+        }
+    );
+    const [loading, setLoading] = useState(!initialPermissions);
 
     useEffect(() => {
+        // Skip fetching if permissions were provided via props
+        if (initialPermissions) {
+            setPermissions(initialPermissions);
+            setLoading(false);
+            return;
+        }
+
         async function checkPermissions() {
             try {
                 const result = await checkEquipmentPermissionsAction();
@@ -43,7 +57,7 @@ export function EquipmentActionButtons() {
             }
         }
         checkPermissions();
-    }, []);
+    }, [initialPermissions]);
 
     return (
         <div className="flex gap-2">

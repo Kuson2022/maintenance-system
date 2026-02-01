@@ -154,6 +154,41 @@ export async function checkEquipmentPermissionsAction(
 }
 
 // =====================================
+// INIT DATA ACTION (Combined for performance)
+// =====================================
+
+/**
+ * ดึงข้อมูลเริ่มต้นสำหรับหน้า Equipment List (รวม categories, floors, permissions)
+ * ใช้แทน 4 API calls แยกกันเพื่อลดเวลาโหลด
+ */
+export async function getEquipmentInitDataAction(): Promise<ActionResponse> {
+  try {
+    const user = await getCurrentUser();
+
+    const [categories, floors, permissions] = await Promise.all([
+      getEquipmentCategories(),
+      getEquipmentFloors(),
+      checkEquipmentPermissions(user.id),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        categories: serializeData(categories),
+        floors,
+        permissions,
+      },
+    };
+  } catch (error: any) {
+    console.error("getEquipmentInitDataAction error:", error);
+    return {
+      success: false,
+      error: error.message || "เกิดข้อผิดพลาดในการดึงข้อมูลเริ่มต้น",
+    };
+  }
+}
+
+// =====================================
 // READ ACTIONS
 // =====================================
 
