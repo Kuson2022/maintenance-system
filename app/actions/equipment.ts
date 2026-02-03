@@ -41,6 +41,15 @@ import {
 } from "@/lib/api/equipment";
 import { EquipmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedCategories,
+  getCachedFloors,
+  getCachedLocations,
+} from "@/lib/api/equipment/cached-queries";
+import {
+  invalidateEquipmentCaches,
+  invalidateCategoriesCache,
+} from "@/lib/cache";
 
 // =====================================
 // TYPES
@@ -166,8 +175,8 @@ export async function getEquipmentInitDataAction(): Promise<ActionResponse> {
     const user = await getCurrentUser();
 
     const [categories, floors, permissions] = await Promise.all([
-      getEquipmentCategories(),
-      getEquipmentFloors(),
+      getCachedCategories(),
+      getCachedFloors(),
       checkEquipmentPermissions(user.id),
     ]);
 
@@ -409,7 +418,7 @@ export async function getEquipmentLocationsAction(
   try {
     await getCurrentUser();
 
-    const locations = await getEquipmentLocations(floor);
+    const locations = await getCachedLocations(floor);
 
     return {
       success: true,
@@ -635,6 +644,7 @@ export async function createEquipmentAction(
     });
 
     revalidatePath("/dashboard/equipment");
+    invalidateEquipmentCaches(); // Invalidate floors and locations cache
 
     return {
       success: true,
@@ -733,6 +743,7 @@ export async function updateEquipmentAction(
 
     revalidatePath("/dashboard/equipment");
     revalidatePath(`/dashboard/equipment/${validatedData.id}`);
+    invalidateEquipmentCaches(); // Invalidate floors and locations cache
 
     return {
       success: true,
@@ -800,6 +811,7 @@ export async function retireEquipmentAction(
     await retireEquipment(id);
 
     revalidatePath("/dashboard/equipment");
+    invalidateEquipmentCaches();
 
     return {
       success: true,
@@ -826,6 +838,7 @@ export async function deleteEquipmentAction(
     await deleteEquipment(id);
 
     revalidatePath("/dashboard/equipment");
+    invalidateEquipmentCaches();
 
     return {
       success: true,

@@ -10,7 +10,7 @@ import {
   getUpcomingPMSchedulesAction,
 } from "@/app/actions/dashboard";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // Cache for 60 seconds
 
 export const metadata: Metadata = {
   title: "Dashboard | ระบบซ่อมบำรุง",

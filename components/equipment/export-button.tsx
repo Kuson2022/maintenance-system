@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { getEquipmentsAction } from "@/app/actions/equipment";
 import { format } from "date-fns";
@@ -47,6 +46,9 @@ export function ExportButton() {
                 "ผู้ผลิต": item.manufacturer || "-",
                 "รุ่น/Model": item.model || "-", // Check if model exists in data, otherwise ignore
             }));
+
+            // Dynamically import XLSX to reduce initial bundle size
+            const XLSX = await import("xlsx");
 
             // Create workbook and worksheet
             const wb = XLSX.utils.book_new();

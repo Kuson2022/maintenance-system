@@ -8,7 +8,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { getWorkOrdersAction } from "@/app/actions/work-orders";
 import { format } from "date-fns";
@@ -63,6 +62,9 @@ export function WorkOrdersExportButton() {
                     : "-",
                 "รายละเอียด": item.description || "-",
             }));
+
+            // Dynamically import XLSX to reduce initial bundle size
+            const XLSX = await import("xlsx");
 
             // Create workbook and worksheet
             const wb = XLSX.utils.book_new();

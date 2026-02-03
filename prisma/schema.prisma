@@ -552,3 +552,21 @@ model LineSettings {
 
   @@map("line_settings")
 }
+
+// ========================================
+// NOTIFICATION SETTINGS
+// ========================================
+
+model NotificationSettings {
+  id                      String   @id @default(uuid()) @db.Uuid
+  pmNotificationEnabled   Boolean  @default(true) @map("pm_notification_enabled")
+  pmNotificationTime      String   @default("17:00") @map("pm_notification_time") // HH:mm format
+  pmDaysBefore            Int      @default(1) @map("pm_days_before") // แจ้งเตื่อนก่อน PM กี่วัน
+  pmOverdueEnabled        Boolean  @default(true) @map("pm_overdue_enabled")
+  pmOverdueDays           Int      @default(3) @map("pm_overdue_days") // แจ้งเตือนเมื่อเกินกำหนดกี่วัน
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_settings")
+}
+

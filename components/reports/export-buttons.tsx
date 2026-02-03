@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Download, FileSpreadsheet, FileText, Loader2, Table2 } from "lucide-react";
 import { useState } from "react";
-import * as XLSX from "xlsx";
 
 interface ExportButtonsProps {
     data?: Record<string, any>[];
@@ -68,11 +67,14 @@ export function ExportButtons({
         }
     };
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         if (data.length === 0) return;
         setIsExporting(true);
 
         try {
+            // Dynamically import XLSX to reduce initial bundle size
+            const XLSX = await import("xlsx");
+
             // Create a new workbook
             const wb = XLSX.utils.book_new();
 

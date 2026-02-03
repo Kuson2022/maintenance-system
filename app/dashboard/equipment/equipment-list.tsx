@@ -442,8 +442,16 @@ export function EquipmentList() {
                 </div>
             )}
 
+            {/* Loading Overlay */}
+            {loading && equipments.length > 0 && (
+                <div className="flex items-center justify-center gap-3 py-8 bg-muted/30 rounded-lg border border-dashed">
+                    <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-muted-foreground">กำลังโหลดข้อมูล...</span>
+                </div>
+            )}
+
             {/* Mobile Card View - Only on small screens */}
-            <div className="block md:hidden">
+            <div className={`block md:hidden ${loading && equipments.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                 <EquipmentMobileList
                     equipments={equipments}
                     selectedIds={selectedIds}
@@ -458,7 +466,7 @@ export function EquipmentList() {
             </div>
 
             {/* Desktop Table View - Only on medium screens and up */}
-            <div className="hidden md:block rounded-md border">
+            <div className={`hidden md:block rounded-md border ${loading && equipments.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Table>
                     <TableHeader>
                         <TableRow>

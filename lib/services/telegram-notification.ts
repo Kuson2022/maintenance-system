@@ -13,7 +13,8 @@ export type TelegramNotificationType =
     | 'WORK_ORDER_CREATED'
     | 'WORK_ORDER_ASSIGNED'
     | 'WORK_ORDER_STATUS_CHANGED'
-    | 'PM_DUE';
+    | 'PM_DUE'
+    | 'PM_OVERDUE';
 
 export interface TelegramNotificationPayload {
     type: TelegramNotificationType;
@@ -29,6 +30,13 @@ export interface TelegramNotificationPayload {
         id: string;
         name: string;
         telegramUsername?: string | null;  // เช่น "@changthep"
+    };
+    pmSchedule?: {
+        id: string;
+        activityName: string;
+        nextDueDate: Date;
+        equipment: { name: string; code: string; location?: string | null };
+        daysOverdue?: number;
     };
 }
 
@@ -120,6 +128,62 @@ function createTelegramMessage(payload: TelegramNotificationPayload): string {
             ``,
             `🔗 ดูรายละเอียด: ${workOrderUrl}`,
         ].join('\n');
+    }
+
+    // === แจ้งเตือน PM Due (ก่อนถึงกำหนด) ===
+    if (payload.type === 'PM_DUE' && payload.pmSchedule) {
+        const { pmSchedule } = payload;
+        const dueDateStr = pmSchedule.nextDueDate.toLocaleDateString('th-TH', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+
+        const technicianDisplay = technician?.telegramUsername
+            ? `${escapeHtml(technician.name)} ${technician.telegramUsername}`
+            : technician ? escapeHtml(technician.name) : 'ยังไม่ได้มอบหมาย';
+
+        return [
+            `🔔 <b>แจ้งเตือน PM ใกล้ถึงกำหนด</b>`,
+            ``,
+            `📝 งาน: ${escapeHtml(pmSchedule.activityName)}`,
+            `📦 อุปกรณ์: ${escapeHtml(pmSchedule.equipment.name)} (${pmSchedule.equipment.code})`,
+            pmSchedule.equipment.location ? `📍 สถานที่: ${escapeHtml(pmSchedule.equipment.location)}` : '',
+            `📅 วันที่กำหนด: ${dueDateStr}`,
+            `👷 ผู้รับผิดชอบ: ${technicianDisplay}`,
+            ``,
+            `🔗 ดูรายละเอียด: ${appUrl}/dashboard/maintenance-schedule`,
+        ].filter(Boolean).join('\n');
+    }
+
+    // === แจ้งเตือน PM Overdue (เกินกำหนด) ===
+    if (payload.type === 'PM_OVERDUE' && payload.pmSchedule) {
+        const { pmSchedule } = payload;
+        const dueDateStr = pmSchedule.nextDueDate.toLocaleDateString('th-TH', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+
+        const technicianDisplay = technician?.telegramUsername
+            ? `${escapeHtml(technician.name)} ${technician.telegramUsername}`
+            : technician ? escapeHtml(technician.name) : 'ยังไม่ได้มอบหมาย';
+
+        return [
+            `⚠️ <b>แจ้งเตือน PM เกินกำหนด!</b>`,
+            ``,
+            `📝 งาน: ${escapeHtml(pmSchedule.activityName)}`,
+            `📦 อุปกรณ์: ${escapeHtml(pmSchedule.equipment.name)} (${pmSchedule.equipment.code})`,
+            pmSchedule.equipment.location ? `📍 สถานที่: ${escapeHtml(pmSchedule.equipment.location)}` : '',
+            `📅 วันที่กำหนด: ${dueDateStr}`,
+            `❗ เกินกำหนด: ${pmSchedule.daysOverdue || 0} วัน`,
+            `👷 ผู้รับผิดชอบ: ${technicianDisplay}`,
+            ``,
+            `กรุณาดำเนินการโดยเร็ว!`,
+            `🔗 ดูรายละเอียด: ${appUrl}/dashboard/maintenance-schedule`,
+        ].filter(Boolean).join('\n');
     }
 
     // Default message

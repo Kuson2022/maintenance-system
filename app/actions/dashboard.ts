@@ -209,38 +209,34 @@ export async function getWorkOrderTrendAction() {
         await checkAuth();
 
         const months = 6;
-        const data = [];
         const now = new Date();
 
-        for (let i = months - 1; i >= 0; i--) {
-            const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        // สร้าง date ranges ก่อน
+        const dateRanges = Array.from({ length: months }, (_, i) => {
+            const monthIndex = months - 1 - i;
+            const startDate = new Date(now.getFullYear(), now.getMonth() - monthIndex, 1);
+            const endDate = new Date(now.getFullYear(), now.getMonth() - monthIndex + 1, 0, 23, 59, 59);
+            return { startDate, endDate, monthLabel: startDate.toLocaleDateString('th-TH', { month: 'short' }) };
+        });
 
-            const [created, completed] = await Promise.all([
-                prisma.workOrder.count({
-                    where: {
-                        reportedAt: {
-                            gte: startDate,
-                            lte: endDate,
-                        },
-                    },
-                }),
-                prisma.workOrder.count({
-                    where: {
-                        completedAt: {
-                            gte: startDate,
-                            lte: endDate,
-                        },
-                    },
-                }),
-            ]);
+        // รัน queries ทั้งหมดพร้อมกัน (parallel)
+        const allQueries = dateRanges.flatMap(({ startDate, endDate }) => [
+            prisma.workOrder.count({
+                where: { reportedAt: { gte: startDate, lte: endDate } },
+            }),
+            prisma.workOrder.count({
+                where: { completedAt: { gte: startDate, lte: endDate } },
+            }),
+        ]);
 
-            data.push({
-                month: startDate.toLocaleDateString('th-TH', { month: 'short' }),
-                created,
-                completed,
-            });
-        }
+        const results = await Promise.all(allQueries);
+
+        // Map results กลับเป็น data array
+        const data = dateRanges.map((range, index) => ({
+            month: range.monthLabel,
+            created: results[index * 2],
+            completed: results[index * 2 + 1],
+        }));
 
         return { success: true, data };
     } catch (error: any) {
@@ -258,30 +254,31 @@ export async function getExpenseTrendAction() {
         await checkAuth();
 
         const months = 6;
-        const data = [];
         const now = new Date();
 
-        for (let i = months - 1; i >= 0; i--) {
-            const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        // สร้าง date ranges ก่อน
+        const dateRanges = Array.from({ length: months }, (_, i) => {
+            const monthIndex = months - 1 - i;
+            const startDate = new Date(now.getFullYear(), now.getMonth() - monthIndex, 1);
+            const endDate = new Date(now.getFullYear(), now.getMonth() - monthIndex + 1, 0, 23, 59, 59);
+            return { startDate, endDate, monthLabel: startDate.toLocaleDateString('th-TH', { month: 'short' }) };
+        });
 
-            const result = await prisma.expense.aggregate({
-                where: {
-                    date: {
-                        gte: startDate,
-                        lte: endDate,
-                    },
-                },
-                _sum: {
-                    total: true,
-                },
-            });
+        // รัน queries ทั้งหมดพร้อมกัน (parallel)
+        const allQueries = dateRanges.map(({ startDate, endDate }) =>
+            prisma.expense.aggregate({
+                where: { date: { gte: startDate, lte: endDate } },
+                _sum: { total: true },
+            })
+        );
 
-            data.push({
-                month: startDate.toLocaleDateString('th-TH', { month: 'short' }),
-                amount: Number(result._sum.total || 0),
-            });
-        }
+        const results = await Promise.all(allQueries);
+
+        // Map results กลับเป็น data array
+        const data = dateRanges.map((range, index) => ({
+            month: range.monthLabel,
+            amount: Number(results[index]._sum.total || 0),
+        }));
 
         return { success: true, data };
     } catch (error: any) {

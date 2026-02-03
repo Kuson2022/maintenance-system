@@ -13,7 +13,7 @@ import { NotificationSettings } from "./notification-settings";
 import { ExpenseTypesSettings } from "./expense-types-settings";
 import { EquipmentCategoriesSettings } from "./equipment-categories-settings";
 import { LocationSettings } from "./location-settings";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SystemSettings } from "./system-settings";
 
 interface SettingsTabsProps {
     user: {
@@ -33,7 +33,7 @@ export function SettingsTabs({ user }: SettingsTabsProps) {
 
     return (
         <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-2 md:grid-cols-2'} lg:w-auto lg:inline-grid`}>
                 <TabsTrigger value="profile" className="gap-2">
                     <User className="h-4 w-4" />
                     <span className="hidden sm:inline">โปรไฟล์</span>
@@ -58,7 +58,7 @@ export function SettingsTabs({ user }: SettingsTabsProps) {
                         </TabsTrigger>
                         <TabsTrigger value="system" className="gap-2">
                             <Settings className="h-4 w-4" />
-                            <span className="hidden sm:inline">ระบบ</span>
+                            <span className="hidden sm:inline">แจ้งเตือนPM</span>
                         </TabsTrigger>
                     </>
                 )}
@@ -101,22 +101,7 @@ export function SettingsTabs({ user }: SettingsTabsProps) {
             {/* System Settings Tab (Admin only) */}
             {isAdmin && (
                 <TabsContent value="system">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Settings className="h-5 w-5" />
-                                การตั้งค่าระบบ
-                            </CardTitle>
-                            <CardDescription>
-                                ตั้งค่าระบบทั่วไป (เฉพาะผู้ดูแลระบบ)
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground text-sm">
-                                ฟีเจอร์นี้กำลังพัฒนา...
-                            </p>
-                        </CardContent>
-                    </Card>
+                    <SystemSettings />
                 </TabsContent>
             )}
         </Tabs>

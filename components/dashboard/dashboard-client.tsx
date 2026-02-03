@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,14 +17,30 @@ import {
     LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { DashboardStatsCards } from "@/components/dashboard/dashboard-stats";
-import { WorkOrderTrendChart } from "@/components/dashboard/work-order-chart";
-import { ExpenseChart } from "@/components/dashboard/expense-chart";
 import { RecentWorkOrders } from "@/components/dashboard/recent-work-orders";
 import { UpcomingSchedules } from "@/components/dashboard/upcoming-schedules";
 import { DashboardStats } from "@/app/actions/dashboard";
 import { useAuth } from "@/lib/auth/auth-context";
+
+// Dynamic imports for chart components to reduce initial bundle size
+const WorkOrderTrendChart = dynamic(
+    () => import("@/components/dashboard/work-order-chart").then((mod) => mod.WorkOrderTrendChart),
+    {
+        loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+        ssr: false
+    }
+);
+
+const ExpenseChart = dynamic(
+    () => import("@/components/dashboard/expense-chart").then((mod) => mod.ExpenseChart),
+    {
+        loading: () => <Skeleton className="h-[300px] w-full rounded-lg" />,
+        ssr: false
+    }
+);
 
 interface WorkOrder {
     id: string;
