@@ -1,11 +1,37 @@
 /**
  * PM Notification Service
- * ส่งแจ้งเตือน PM (Preventive Maintenance) ก่อนถึงวันกำหนด
+ * ส่งแจ้งเตือน PM (Preventive Maintenance) ในวันที่ถึงกำหนด และเมื่อเกินกำหนด
+ * ใช้ timezone ประเทศไทย (UTC+7) ในการคำนวณวันที่
+ * 
+ * หมายเหตุ: วันที่ใน database ถูกเก็บเป็น noon UTC (12:00:00Z) เพื่อป้องกัน timezone shift
  */
 
 import { prisma } from "@/lib/prisma";
 import { sendGroupNotification } from "./line-notification";
 import { sendTelegramGroupNotification } from "./telegram-notification";
+
+// Thailand timezone offset (UTC+7)
+const THAILAND_TIMEZONE = "Asia/Bangkok";
+
+/**
+ * คำนวณวันที่ปัจจุบันตาม timezone ไทย และคืนค่าเป็น noon UTC
+ * เพื่อให้ตรงกับวิธีที่เก็บ nextDueDate ใน database
+ * @returns วันที่ 12:00:00 UTC ของวันนี้ตามเวลาไทย
+ */
+function getTodayInThailand(): Date {
+    // สร้าง date string ในรูปแบบ YYYY-MM-DD ตามเวลาไทย
+    const now = new Date();
+    const thaiDateStr = now.toLocaleDateString("en-CA", {
+        timeZone: THAILAND_TIMEZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+
+    // แปลงกลับเป็น Date object ที่ 12:00:00 UTC (noon)
+    // เพื่อให้ตรงกับวิธีที่เก็บ nextDueDate ใน database
+    return new Date(thaiDateStr + "T12:00:00.000Z");
+}
 
 export interface PMScheduleForNotification {
     id: string;
@@ -26,25 +52,20 @@ export interface PMScheduleForNotification {
 }
 
 /**
- * ดึง PM Schedules ที่ต้องแจ้งเตือน (ก่อน due date)
+ * ดึง PM Schedules ที่ต้องแจ้งเตือน (วันที่ถึงกำหนด PM วันนี้ตามเวลาไทย)
  */
-export async function getPMSchedulesDue(daysBefore: number = 1): Promise<PMScheduleForNotification[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+export async function getPMSchedulesDue(): Promise<PMScheduleForNotification[]> {
+    const today = getTodayInThailand();
 
-    // คำนวณวันที่ต้องการแจ้งเตือน (วันนี้ + daysBefore)
-    const targetDate = new Date(today);
-    targetDate.setDate(targetDate.getDate() + daysBefore);
-
-    const nextDay = new Date(targetDate);
-    nextDay.setDate(nextDay.getDate() + 1);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
     const schedules = await prisma.maintenanceSchedule.findMany({
         where: {
             status: "ACTIVE",
             nextDueDate: {
-                gte: targetDate,
-                lt: nextDay,
+                gte: today,
+                lt: tomorrow,
             },
         },
         include: {
@@ -77,22 +98,26 @@ export async function getPMSchedulesDue(daysBefore: number = 1): Promise<PMSched
 }
 
 /**
- * ดึง PM Schedules ที่เกินกำหนด (overdue)
+ * ดึง PM Schedules ที่เกินกำหนดพอดี X วัน (แจ้งเตือนเฉพาะวันที่ครบกำหนด overdue)
+ * เช่น overdueDays = 3 จะแจ้งเตือน PM ที่เกินกำหนดครบ 3 วันพอดีเท่านั้น
+ * ใช้เวลาไทยในการคำนวณ
  */
 export async function getPMSchedulesOverdue(overdueDays: number = 3): Promise<PMScheduleForNotification[]> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayInThailand();
 
-    // คำนวณวันที่เกินกำหนด (overdueDays วันก่อน)
-    const overdueDate = new Date(today);
-    overdueDate.setDate(overdueDate.getDate() - overdueDays);
+    // คำนวณวันที่เกินกำหนดพอดี X วัน
+    const exactOverdueDate = new Date(today);
+    exactOverdueDate.setDate(exactOverdueDate.getDate() - overdueDays);
+
+    const nextDay = new Date(exactOverdueDate);
+    nextDay.setDate(nextDay.getDate() + 1);
 
     const schedules = await prisma.maintenanceSchedule.findMany({
         where: {
             status: "ACTIVE",
             nextDueDate: {
-                lt: today, // เกินกำหนดแล้ว
-                gte: overdueDate, // แต่ไม่เกิน X วัน (เพื่อไม่ให้แจ้งซ้ำทุกวัน)
+                gte: exactOverdueDate, // เกินกำหนดพอดี X วัน
+                lt: nextDay,
             },
         },
         include: {

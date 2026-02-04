@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Bell, Clock, CalendarDays, AlertTriangle, Loader2, Save } from "lucide-react";
+import { Settings, Bell, AlertTriangle, Loader2, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
     getNotificationSettingsAction,
@@ -21,7 +21,6 @@ import {
 interface NotificationSettings {
     pmNotificationEnabled: boolean;
     pmNotificationTime: string;
-    pmDaysBefore: number;
     pmOverdueEnabled: boolean;
     pmOverdueDays: number;
 }
@@ -31,8 +30,7 @@ export function SystemSettings() {
     const [saving, setSaving] = useState(false);
     const [settings, setSettings] = useState<NotificationSettings>({
         pmNotificationEnabled: true,
-        pmNotificationTime: "17:00",
-        pmDaysBefore: 1,
+        pmNotificationTime: "06:00",
         pmOverdueEnabled: true,
         pmOverdueDays: 3,
     });
@@ -49,7 +47,6 @@ export function SystemSettings() {
                 setSettings({
                     pmNotificationEnabled: result.data.pmNotificationEnabled,
                     pmNotificationTime: result.data.pmNotificationTime,
-                    pmDaysBefore: result.data.pmDaysBefore,
                     pmOverdueEnabled: result.data.pmOverdueEnabled,
                     pmOverdueDays: result.data.pmOverdueDays,
                 });
@@ -65,7 +62,10 @@ export function SystemSettings() {
     const handleSave = async () => {
         try {
             setSaving(true);
-            const result = await updateNotificationSettingsAction(settings);
+            const result = await updateNotificationSettingsAction({
+                ...settings,
+                pmDaysBefore: 0, // แจ้งเตือนในวันที่มี PM เสมอ
+            });
 
             if (result.success) {
                 toast.success("บันทึกการตั้งค่าเรียบร้อย");
@@ -103,7 +103,7 @@ export function SystemSettings() {
                         การแจ้งเตือน PM (Preventive Maintenance)
                     </CardTitle>
                     <CardDescription>
-                        ตั้งค่าการแจ้งเตือนก่อนถึงวันทำ PM ผ่าน LINE และ Telegram
+                        ตั้งค่าการแจ้งเตือนในวันที่ถึงกำหนด PM ผ่าน LINE และ Telegram
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -112,7 +112,7 @@ export function SystemSettings() {
                         <div className="space-y-0.5">
                             <Label className="text-base">เปิดใช้งานแจ้งเตือน PM</Label>
                             <p className="text-sm text-muted-foreground">
-                                ส่งแจ้งเตือนก่อนถึงวันที่กำหนดทำ PM
+                                ส่งแจ้งเตือนในวันที่ถึงกำหนดทำ PM
                             </p>
                         </div>
                         <Switch
@@ -125,45 +125,17 @@ export function SystemSettings() {
 
                     {settings.pmNotificationEnabled && (
                         <div className="space-y-4 border-t pt-4">
-                            {/* Notification Time */}
-                            <div className="grid gap-2">
-                                <Label htmlFor="pmTime" className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4" />
-                                    เวลาแจ้งเตือน
-                                </Label>
-                                <Input
-                                    id="pmTime"
-                                    type="time"
-                                    value={settings.pmNotificationTime}
-                                    onChange={(e) =>
-                                        setSettings({ ...settings, pmNotificationTime: e.target.value })
-                                    }
-                                    className="w-32"
-                                />
-                                <p className="text-sm text-muted-foreground">
-                                    ระบบจะส่งแจ้งเตือนทุกวันในเวลานี้ (เวลาประเทศไทย)
-                                </p>
-                            </div>
-
-                            {/* Days Before */}
-                            <div className="grid gap-2">
-                                <Label htmlFor="pmDaysBefore" className="flex items-center gap-2">
-                                    <CalendarDays className="h-4 w-4" />
-                                    แจ้งเตือนก่อนถึงกำหนด
-                                </Label>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        id="pmDaysBefore"
-                                        type="number"
-                                        min={1}
-                                        max={30}
-                                        value={settings.pmDaysBefore}
-                                        onChange={(e) =>
-                                            setSettings({ ...settings, pmDaysBefore: parseInt(e.target.value) || 1 })
-                                        }
-                                        className="w-20"
-                                    />
-                                    <span className="text-sm text-muted-foreground">วัน</span>
+                            {/* Info Box */}
+                            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+                                <div className="text-sm">
+                                    <p className="font-medium text-blue-700 dark:text-blue-300">
+                                        แจ้งเตือนวันที่มี PM
+                                    </p>
+                                    <p className="text-blue-600 dark:text-blue-400">
+                                        ระบบจะส่งแจ้งเตือนทุกวันเวลา 06:00 น. (เวลาประเทศไทย)
+                                        สำหรับ PM ที่ถึงกำหนดในวันนั้น
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -206,6 +178,9 @@ export function SystemSettings() {
                                     />
                                     <span className="text-sm text-muted-foreground">วัน</span>
                                 </div>
+                                <p className="text-xs text-muted-foreground">
+                                    ระบบจะส่งแจ้งเตือนซ้ำเมื่อ PM เกินกำหนดครบจำนวนวันที่กำหนด
+                                </p>
                             </div>
                         )}
                     </div>
@@ -240,17 +215,22 @@ export function SystemSettings() {
                 <CardContent>
                     <div className="text-sm text-muted-foreground space-y-2">
                         <p>
-                            <strong>Cron Schedule:</strong> ทุกวันเวลา {settings.pmNotificationTime} น.
+                            <strong>เวลาแจ้งเตือน:</strong> 06:00 น. (เวลาประเทศไทย)
                         </p>
                         <p>
                             <strong>ช่องทางแจ้งเตือน:</strong> LINE, Telegram
                         </p>
-                        <p className="text-xs">
-                            หมายเหตุ: การเปลี่ยนเวลาแจ้งเตือนจะต้อง deploy ใหม่เพื่อให้มีผล
+                        <p>
+                            <strong>รูปแบบการแจ้งเตือน:</strong>
                         </p>
+                        <ul className="list-disc list-inside ml-4 space-y-1">
+                            <li>แจ้งเตือนในวันที่ถึงกำหนด PM</li>
+                            <li>แจ้งเตือนซ้ำเมื่อเกินกำหนด {settings.pmOverdueDays} วัน</li>
+                        </ul>
                     </div>
                 </CardContent>
             </Card>
         </div>
     );
 }
+

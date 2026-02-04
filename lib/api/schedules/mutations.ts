@@ -6,30 +6,46 @@ import { createScheduleSchema, updateScheduleSchema } from "./validation";
 import { MaintenanceScheduleFrequency, MaintenanceScheduleStatus } from "@prisma/client";
 import { addDays, addWeeks, addMonths, addQuarters, addYears } from "date-fns";
 
+/**
+ * Normalize a date to noon UTC (12:00:00.000Z) to prevent timezone shift issues
+ * This ensures the date stays the same regardless of local timezone
+ */
+function normalizeDateToNoonUTC(date: Date): Date {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    // Create date at noon UTC to prevent day shift across timezones
+    return new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+}
+
 // Helper to calculate next due date
 function calculateNextDueDate(currentDate: Date, frequency: MaintenanceScheduleFrequency): Date {
+    let nextDate: Date;
     switch (frequency) {
-        case "DAILY": return addDays(currentDate, 1);
-        case "WEEKLY": return addWeeks(currentDate, 1);
-        case "BI_WEEKLY": return addWeeks(currentDate, 2);
-        case "MONTHLY": return addMonths(currentDate, 1);
-        case "QUARTERLY": return addQuarters(currentDate, 1);
-        case "SEMI_ANNUALLY": return addMonths(currentDate, 6);
-        case "ANNUALLY": return addYears(currentDate, 1);
-        default: return currentDate; // CUSTOM needs manual intervention usually
+        case "DAILY": nextDate = addDays(currentDate, 1); break;
+        case "WEEKLY": nextDate = addWeeks(currentDate, 1); break;
+        case "BI_WEEKLY": nextDate = addWeeks(currentDate, 2); break;
+        case "MONTHLY": nextDate = addMonths(currentDate, 1); break;
+        case "QUARTERLY": nextDate = addQuarters(currentDate, 1); break;
+        case "SEMI_ANNUALLY": nextDate = addMonths(currentDate, 6); break;
+        case "ANNUALLY": nextDate = addYears(currentDate, 1); break;
+        default: nextDate = currentDate; // CUSTOM needs manual intervention usually
     }
+    // Normalize result to noon UTC as well
+    return normalizeDateToNoonUTC(nextDate);
 }
 
 export async function createSchedule(data: any) {
     const validated = createScheduleSchema.parse(data);
 
-    // Set initial nextDueDate to startDate
-    const nextDueDate = validated.startDate;
+    // Normalize startDate to noon UTC to prevent timezone issues
+    const normalizedStartDate = normalizeDateToNoonUTC(validated.startDate);
 
     const schedule = await prisma.maintenanceSchedule.create({
         data: {
             ...validated,
-            nextDueDate,
+            startDate: normalizedStartDate,
+            nextDueDate: normalizedStartDate,
             status: "ACTIVE",
         },
     });
@@ -41,6 +57,11 @@ export async function createSchedule(data: any) {
 export async function updateSchedule(data: any) {
     const validated = updateScheduleSchema.parse(data);
     const { id, ...updateData } = validated;
+
+    // Normalize startDate if it's being updated
+    if (updateData.startDate) {
+        updateData.startDate = normalizeDateToNoonUTC(updateData.startDate);
+    }
 
     const schedule = await prisma.maintenanceSchedule.update({
         where: { id },
