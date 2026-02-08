@@ -77,11 +77,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
         {/* Right side - Notifications + User menu */}
         <div className="flex items-center gap-2 lg:gap-4">
-          {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-          </Button>
+
 
           {/* User Menu */}
           <DropdownMenu>
@@ -114,12 +110,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 <Link href="/dashboard/settings">
                   <User className="mr-2 h-4 w-4" />
                   <span>โปรไฟล์</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>ตั้งค่า</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
